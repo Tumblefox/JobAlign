@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "JobAlign",
-  description: "Match your work experience to a job description with AI tools",
+  description: "Match your work experience to a job description with AI tools.",
 };
 
 export default function RootLayout({ children }) {
