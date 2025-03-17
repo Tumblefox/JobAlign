@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import hotkeys from 'hotkeys-js';
+import DOMPurify from 'dompurify';
 // Shoelace components
 import SlButton from "@shoelace-style/shoelace/dist/react/button";
 import SlIcon from "@shoelace-style/shoelace/dist/react/icon";
@@ -12,14 +13,22 @@ import SlSpinner from "@shoelace-style/shoelace/dist/react/spinner";
 // Custom components
 import Notification from "../components/Notification";
 
+// hotkeys('ctrl+g', (ev) => {
+//   ev.preventDefault();
+//   localStorage.removeItem("job-align");
+// });
 
 export default function Home() {
+  // States
   const [notifications, setNotifications] = React.useState([]);
-
-  hotkeys('ctrl+g', (ev) => {
-    ev.preventDefault();
-    localStorage.removeItem("job-align");
-  });
+  const [skills, setSkills] = React.useState('');
+  const [retargetedResults, setRetargetedExperience] = React.useState(
+    `<em className="text-gray-400">Your work experience, rewritten by AI using the job description.</em>`
+  );
+  // Refs
+  const jobDescriptionInputRef = React.useRef(null);
+  const workExperienceInputRef = React.useRef(null);
+  const loadingContentElementRef = React.useRef(null);
 
   const addNotification = (newNotification) => {
     setNotifications(
@@ -32,7 +41,7 @@ export default function Home() {
 
   const checkSession = () => {
     const REQUEST_LIMIT = 3;
-    const WAIT_TIME = 1000 * 60 * 60 * 24;
+    const WAIT_TIME = 1000 * 60 * 60 * 4;
 
     const savedSession = localStorage.getItem("job-align");
     let currentSession;
@@ -103,7 +112,7 @@ export default function Home() {
     }
 
     extractedSkillsString += "<hr />"
-    document.querySelector("#extracted-skills").innerHTML = extractedSkillsString;
+    setSkills(extractedSkillsString);
   };
 
   const retargetExperience = async () => {
@@ -113,13 +122,13 @@ export default function Home() {
       let requestParams = {};
 
       [
-        "job-description",
-        "work-experience"
+        {id: "job-description", ref: jobDescriptionInputRef},
+        {id: "work-experience", ref: workExperienceInputRef},
       ]
-      .forEach(id => {
-        let value = document.querySelector(`#${id}`)?.value;
+      .forEach(input => {
+        let value = input.ref.current.value;
         if(value !== "") {
-          requestParams[id] = value;
+          requestParams[input.id] = value;
         }
       });
 
@@ -136,8 +145,8 @@ export default function Home() {
         return;
       }
 
-      document.querySelector("#retargeted-result").innerHTML = "";
-      document.querySelector(".loading-content").classList.remove("hidden");
+      setRetargetedExperience("");
+      loadingContentElementRef.current.classList.remove("hidden");
 
       const response = await fetch(API, {
         method: 'POST',
@@ -162,15 +171,15 @@ export default function Home() {
       const newWorkExperience = title + results.workExperience
       .replace(/\*/g, "")
       .replace(/(?:\r\n|\r|\n)/g, "<br />");
-      document.querySelector("#retargeted-result").innerHTML = newWorkExperience;
-      document.querySelector(".loading-content").classList.add("hidden");
+      setRetargetedExperience(newWorkExperience);
+      loadingContentElementRef.current.classList.add("hidden");
     }
     catch(error) {
       console.log(error.message);
-      document.querySelector("retargeted-result").innerHTML = `
+      setRetargetedExperience(`
         <em className="text-gray-400">Your work experience, rewritten by AI using the job description.</em>
-      `;
-      document.querySelector(".loading-content").classList.add("hidden");
+      `);
+      loadingContentElementRef.current.classList.add("hidden");
     }
   };
 
@@ -192,6 +201,7 @@ export default function Home() {
           className="w-full main-textarea"
           label="1. Job Description"
           placeholder="Add the description for the job of interest"
+          ref={ jobDescriptionInputRef }
         >
         </SlTextArea>
 
@@ -200,12 +210,13 @@ export default function Home() {
           className="w-full main-textarea"
           label="2. Your Work Experience"
           placeholder="Enter the work experience from your resume"
+          ref={ workExperienceInputRef }
         >
         </SlTextArea>
       </section>
 
       <section className="w-full">
-        <SlButton onClick={retargetExperience}>
+        <SlButton id="retarget-experience" onClick={retargetExperience}>
           <SlIcon name="crosshair" /> Retarget Experience
         </SlButton>
       </section>
@@ -215,14 +226,17 @@ export default function Home() {
           <SlIcon name="file-check" /> Results
         </h2>
 
-        <div className="mb-4" id="extracted-skills">
+        <div className="mb-4" dangerouslySetInnerHTML={{__html: skills}} id="extracted-skills">
         </div>
 
-        <p id="retargeted-result">
-          <em className="text-gray-400">Your work experience, rewritten by AI using the job description.</em>
+        <p id="retargeted-result" dangerouslySetInnerHTML={{__html: retargetedResults}}>
         </p>
 
-        <SlSpinner className="hidden loading-content" style={{ fontSize: '3rem' }} />
+        <SlSpinner
+          className="hidden loading-content"
+          style={{ fontSize: '3rem' }}
+          ref={ loadingContentElementRef }
+        />
       </section>
 
       <div className="absolute top-10 right-10">
